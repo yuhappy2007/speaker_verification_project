@@ -1,0 +1,56 @@
+# Python相关
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# PyCharm相关
+.idea/
+*.iml
+.vscode/
+
+# 数据集文件夹（重要！）
+data/
+dataset/
+datasets/
+
+# 模型检查点（重要！）
+checkpoints_fixed_200batch/
+checkpoints_paper_final/
+*.pth
+*.h5
+*.pkl
+*.ckpt
+*.pt
+
+# 模型文件夹
+models/
+
+# 结果文件
+results/
+*.json
+
+# 大型媒体文件
+*.mp4
+*.avi
+*.mov
+*.wav
+*.mp3
+*.flac
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
