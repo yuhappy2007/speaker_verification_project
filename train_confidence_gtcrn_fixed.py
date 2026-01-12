@@ -139,7 +139,7 @@ def train_epoch(gtcrn, speaker_model, confidence_net, dataloader, criterion,
                 optimizer, device, epoch):
     """训练一个 epoch"""
     # GTCRN 和说话人模型冻结
-    gtcrn.eval()
+
     speaker_model.eval()
 
     # 置信度网络训练
@@ -210,7 +210,7 @@ def train_epoch(gtcrn, speaker_model, confidence_net, dataloader, criterion,
 
 def validate(gtcrn, speaker_model, confidence_net, dataloader, criterion, device):
     """验证"""
-    gtcrn.eval()
+
     speaker_model.eval()
     confidence_net.eval()
 
