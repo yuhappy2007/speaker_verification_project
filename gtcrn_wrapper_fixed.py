@@ -448,8 +448,8 @@ class GTCRNWrapper:
         self.device = device
         self.freeze = freeze
         self.sr = 16000
-        self.n_fft = 512
-        self.hop = 256
+        self.n_fft = 320
+        self.hop = 160
 
         print("🎤 Initializing GTCRN Wrapper (Fixed Version)...")
         print(f"   Checkpoint: {checkpoint_path}")
