@@ -352,7 +352,9 @@ def main(args):
             def forward(self, x):
                 # x: [batch, 1, samples]
                 x = self.conv(x)
-                x = self.pool(x).squeeze(-1)
+                batch_size = x.size(0)
+                x = self.pool(x)
+                x = x.view(batch_size, 64)
                 x = self.fc(x)
                 return nn.functional.normalize(x, p=2, dim=1)
 
