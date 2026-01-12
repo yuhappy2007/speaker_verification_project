@@ -351,12 +351,16 @@ def main(args):
 
             def forward(self, x):
                 # x: [batch, 1, samples]
-                x = self.conv(x)
                 batch_size = x.size(0)
-                x = self.pool(x)
-                x = x.view(batch_size, 64)
-                x = self.fc(x)
-                return nn.functional.normalize(x, p=2, dim=1)
+
+                x = self.conv(x)  # [batch, 64, samples]
+                x = self.pool(x)  # [batch, 64, 1]
+                x = x.view(batch_size, 64)  # [batch, 64]
+                x = self.fc(x)  # [batch, embedding_dim]
+
+                # L2 normalize
+                x = nn.functional.normalize(x, p=2, dim=1)
+                return x
 
         speaker_model = DummySpeakerModel(embedding_dim=args.embedding_dim).to(device)
         speaker_model.eval()
