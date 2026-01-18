@@ -13,7 +13,41 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import numpy as np
-from sklearn.metrics import roc_curve
+
+try:
+    from sklearn.metrics import roc_curve
+except ImportError:
+    # 如果sklearn有问题，使用简单实现
+    def roc_curve(y_true, y_score, pos_label=1):
+        """简单的ROC曲线计算"""
+        y_true = np.array(y_true)
+        y_score = np.array(y_score)
+
+        # 排序
+        sorted_indices = np.argsort(y_score)[::-1]
+        y_true_sorted = y_true[sorted_indices]
+        y_score_sorted = y_score[sorted_indices]
+
+        # 计算TPR和FPR
+        thresholds = np.unique(y_score_sorted)
+        tpr_list, fpr_list, thresh_list = [], [], []
+
+        total_pos = np.sum(y_true == pos_label)
+        total_neg = np.sum(y_true != pos_label)
+
+        for thresh in thresholds:
+            pred_pos = y_score >= thresh
+            tp = np.sum((pred_pos) & (y_true == pos_label))
+            fp = np.sum((pred_pos) & (y_true != pos_label))
+
+            tpr = tp / total_pos if total_pos > 0 else 0
+            fpr = fp / total_neg if total_neg > 0 else 0
+
+            tpr_list.append(tpr)
+            fpr_list.append(fpr)
+            thresh_list.append(thresh)
+
+        return np.array(fpr_list), np.array(tpr_list), np.array(thresh_list)
 from pathlib import Path
 from tqdm import tqdm
 import argparse
@@ -25,26 +59,32 @@ sys.path.insert(0, str(project_root / 'scripts'))
 
 
 class ConfidenceNetworkV3(nn.Module):
-    """置信度网络V3 - 必须与训练时的定义完全一致"""
+    """
+    置信度网络V3 - 与训练脚本完全一致
+    """
 
     def __init__(self, embedding_dim=192, hidden_dim=256):
         super().__init__()
+        self.embedding_dim = embedding_dim
 
-        # 差异编码器
+        # 嵌入差异编码器
+        # 输入: |emb_noisy - emb_enhanced| 和 emb_noisy * emb_enhanced
         self.diff_encoder = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
+            nn.Linear(embedding_dim * 2, 64),
             nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(hidden_dim, hidden_dim // 2)
+            nn.Linear(64, 32),
+            nn.ReLU()
         )
 
-        # Attention网络
+        # Attention机制
+        # 输入: emb_noisy(192) + emb_enhanced(192) + diff_feat(32) = 416
         self.attention = nn.Sequential(
-            nn.Linear(embedding_dim * 2 + hidden_dim // 2, hidden_dim),
+            nn.Linear(embedding_dim * 2 + 32, 128),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(hidden_dim, 2),
-            nn.Softmax(dim=1)
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 2)
         )
 
         # 融合网络
@@ -52,17 +92,23 @@ class ConfidenceNetworkV3(nn.Module):
             nn.Linear(embedding_dim * 2, hidden_dim),
             nn.ReLU(),
             nn.Dropout(0.1),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1),
             nn.Linear(hidden_dim, embedding_dim)
         )
 
     def forward(self, emb_noisy, emb_enhanced):
         # 计算差异特征
-        diff = emb_noisy - emb_enhanced
-        diff_feat = self.diff_encoder(diff)
+        diff = torch.abs(emb_noisy - emb_enhanced)
+        prod = emb_noisy * emb_enhanced
+        diff_input = torch.cat([diff, prod], dim=1)
+        diff_feat = self.diff_encoder(diff_input)
 
         # 计算attention权重
         concat = torch.cat([emb_noisy, emb_enhanced, diff_feat], dim=1)
-        weights = self.attention(concat)
+        attn_logits = self.attention(concat)
+        weights = F.softmax(attn_logits, dim=1)
         w_noisy = weights[:, 0:1]
         w_enhanced = weights[:, 1:2]
 
